@@ -1,0 +1,29 @@
+{
+  "source": "Tilastokeskus - Rakennuskustannusindeksi",
+  "index_base": "2015=100",
+  "method": "Holt Exponential Smoothing (alpha=0.3, beta=0.1)",
+  "current_level": 124.3,
+  "monthly_trend": 0.143,
+  "annual_trend": 1.7,
+  "annual_trend_pct": 1.38,
+  "latest_value": {
+    "date": "2026-01",
+    "value": 124.5
+  },
+  "forecast_12m": {
+    "2026-02": 124.5,
+    "2026-03": 124.6,
+    "2026-04": 124.7,
+    "2026-05": 124.9,
+    "2026-06": 125.0,
+    "2026-07": 125.2,
+    "2026-08": 125.3,
+    "2026-09": 125.5,
+    "2026-10": 125.6,
+    "2026-11": 125.7,
+    "2026-12": 125.9,
+    "2027-01": 126.0
+  },
+  "total_change_12m": 1.5,
+  "percent_change_12m": 1.23
+}

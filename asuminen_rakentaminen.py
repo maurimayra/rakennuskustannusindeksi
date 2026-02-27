@@ -8,10 +8,9 @@ Yhdistaa Tilastokeskuksen tilastot:
 3. Osakeasuntojen hinnat (ashi) - hintaindeksi
 4. Kiinteistojen hinnat (kihi) - hintaindeksi
 5. Kiinteiston yllapidon kustannusindeksi (kyki)
-6. Rakennus- ja asuntotuotanto (ras) - volyymi-indeksi
-
+6. Rakennus- ja asuntotuotanto (ras) - volyymi-indeksi7. Rakennusluvat (raku) - myönnetyt rakennusluvat tilavuus m3, liukuva vuosisumma
 Yhteinen muuttuja: Aika (kuukausi/vuosineljannes)
-Indeksointi: Kaikki muunnetaan perusvuoteen 2021=100
+Indeksointi: Kaikki muunnetaan perusvuoteen 2015=100
 """
 
 import requests
@@ -91,7 +90,24 @@ def convert_to_index(from_base: int, to_base: int, values: dict) -> dict:
     """Muunna indeksisarja perusvuodesta toiseen"""
     if from_base == to_base:
         return values
-    return {k: v * (to_base / from_base) for k, v in values.items()}
+    
+    # Laske from_base vuoden keskiarvo
+    from_year_values = [v for k, v in values.items() if k.startswith(str(from_base))]
+    if not from_year_values:
+        return values
+    from_avg = sum(from_year_values) / len(from_year_values)
+    
+    # Laske to_base vuoden keskiarvo
+    to_year_values = [v for k, v in values.items() if k.startswith(str(to_base))]
+    if not to_year_values:
+        return values
+    to_avg = sum(to_year_values) / len(to_year_values)
+    
+    # Muunna: (arvo / from_avg) * to_base_arvo, missä to_base_arvo = 100
+    # Eli: (arvo / from_avg) * (to_avg / to_avg) * 100
+    # = (arvo / from_avg) * 100 * (to_avg / to_avg)
+    # Mutta koska haluamme to_base = 100, teemme: (arvo / to_avg) * 100
+    return {k: (v / to_avg) * 100 for k, v in values.items()}
 
 
 def month_to_quarter(month_key: str) -> str:
@@ -103,28 +119,28 @@ def month_to_quarter(month_key: str) -> str:
 # 1. RAKENNUSKUSTANNUSINDEKSI
 # =============================================================================
 def fetch_rakennuskustannusindeksi() -> dict:
-    print("  [1/6] Rakennuskustannusindeksi...")
+    print("  [1/7] Rakennuskustannusindeksi...")
     
     query = {
         "query": [
             {"code": "Kuukausi", "selection": {"filter": "item", 
                 "values": [f"{y}M{m:02d}" for y in range(2015, 2027) for m in range(1, 13) 
                 if not (y == 2026 and m > 1)]}},
-            {"code": "Perusvuosi", "selection": {"filter": "item", "values": ["2021_100"]}},
+            {"code": "Perusvuosi", "selection": {"filter": "item", "values": ["2015_100"]}},
             {"code": "Tiedot", "selection": {"filter": "item", "values": ["pisteluku"]}}
         ],
         "response": {"format": "json"}
     }
     
     data = fetch_data("rki/statfin_rki_pxt_13g8.px", query)
-    return parse_data(data)
+    return parse_data(data)  # Already base 2015
 
 
 # =============================================================================
 # 2. VUOKRAINDEKSI
 # =============================================================================
 def fetch_vuokraindeksi() -> dict:
-    print("  [2/6] Vuokraindeksi...")
+    print("  [2/7] Vuokraindeksi...")
     
     query = {
         "query": [
@@ -141,14 +157,14 @@ def fetch_vuokraindeksi() -> dict:
     data = fetch_data("asvu/statfin_asvu_pxt_11x4.px", query)
     raw = parse_data(data)
     monthly = index_quarter_to_month(raw)
-    return convert_to_index(2015, 2021, monthly)
+    return monthly  # Already base 2015
 
 
 # =============================================================================
 # 3. OSAKEASUNTOJEN HINTAINDEKSI
 # =============================================================================
 def fetch_osakeasuntojen_hinnat() -> dict:
-    print("  [3/6] Osakeasuntojen hinnat...")
+    print("  [3/7] Osakeasuntojen hinnat...")
     
     query = {
         "query": [
@@ -167,14 +183,14 @@ def fetch_osakeasuntojen_hinnat() -> dict:
     if not raw:
         return {}
     monthly = index_quarter_to_month(raw)
-    return convert_to_index(2015, 2021, monthly)
+    return monthly  # Already base 2015
 
 
 # =============================================================================
 # 4. KIINTEISTOJEN HINNAT
 # =============================================================================
 def fetch_kiinteistojen_hinnat() -> dict:
-    print("  [4/6] Omakotitalotonttien hinnat...")
+    print("  [4/7] Omakotitalotonttien hinnat...")
     
     query = {
         "query": [
@@ -203,14 +219,14 @@ def fetch_kiinteistojen_hinnat() -> dict:
             quarterly[f"{year}Q{q}"] = value
     
     monthly = index_quarter_to_month(quarterly)
-    return convert_to_index(2015, 2021, monthly)
+    return monthly  # Already base 2015
 
 
 # =============================================================================
 # 5. KIINTEISTON YLLAPIDON KUSTANNUSINDEKSI
 # =============================================================================
 def fetch_kiinteisto_yllapito() -> dict:
-    print("  [5/6] Kiinteiston yllapito...")
+    print("  [5/7] Kiinteiston yllapito...")
     
     # Hae saatavilla olevat neljännekset
     available = get_available_quarters("kyki/statfin_kyki_pxt_14ry.px")
@@ -247,30 +263,30 @@ def fetch_kiinteisto_yllapito() -> dict:
         time.sleep(0.5)  # Rate limit protection
     
     monthly = index_quarter_to_month(result)
-    return monthly
+    return convert_to_index(2021, 2015, monthly)
 
 
 # =============================================================================
 # 6. RAKENNUSTUOTANTO
 # =============================================================================
 def fetch_rakennus_tuotanto() -> dict:
-    print("  [6/6] Uudisrakentamisen volyymi...")
+    print("  [6/7] Uudisrakentamisen volyymi...")
     
     result = {}
-    for year in range(2015, 2025):
+    for year in range(2015, 2026):
         query = {
             "query": [
-                {"code": "Kuukausi", "selection": {"filter": "item",
+                {"code": "rakennusluokitus2018", "selection": {"filter": "item", "values": ["SSS"]}},
+                {"code": "timeperiod", "selection": {"filter": "item",
                     "values": [f"{year}M{m:02d}" for m in range(1, 13)]}},
-                {"code": "Käyttötarkoitus", "selection": {"filter": "item", "values": ["SSS"]}},
-                {"code": "Tiedot", "selection": {"filter": "item", "values": ["indeksi"]}}
+                {"code": "ContentCode", "selection": {"filter": "item", "values": ["urvi2020"]}}
             ],
             "response": {"format": "json"}
         }
         
-        data = fetch_data("ras/statfin_ras_pxt_12fz.px", query)
+        data = fetch_data("raku/statfin_raku_pxt_156g.px", query)
         for item in data.get('data', []):
-            time_str = item['key'][0]
+            time_str = item['key'][1]  # Aika on toinen avain
             val = item['values'][0]
             if val not in ['.', '..', '']:
                 try:
@@ -280,7 +296,46 @@ def fetch_rakennus_tuotanto() -> dict:
         
         time.sleep(1)  # Rate limit protection
     
-    return convert_to_index(2015, 2021, result)
+    return convert_to_index(2020, 2015, result)
+
+
+# =============================================================================
+# 7. RAKENNUSLUVAT
+# =============================================================================
+def fetch_rakennusluvat() -> dict:
+    print("  [7/7] Myönnetyt rakennusluvat...")
+    
+    result = {}
+    for year in range(2015, 2026):
+        query = {
+            "query": [
+                {"code": "rakennusvaihe", "selection": {"filter": "item", "values": ["1"]}},
+                {"code": "alue", "selection": {"filter": "item", "values": ["SSS"]}},
+                {"code": "timeperiod", "selection": {"filter": "item",
+                    "values": [f"{year}M{m:02d}" for m in range(1, 13)]}},
+                {"code": "rakennusluokitus2018", "selection": {"filter": "item", "values": ["SSS"]}},
+                {"code": "ContentCode", "selection": {"filter": "item", "values": ["tilavuusToimenpide_lvs"]}}
+            ],
+            "response": {"format": "json"}
+        }
+        
+        data = fetch_data("raku/statfin_raku_pxt_156f.px", query)
+        for item in data.get('data', []):
+            time_str = item['key'][2]  # Aika on kolmas avain
+            val = item['values'][0]
+            if val not in ['.', '..', '']:
+                try:
+                    result[time_str] = float(val)
+                except:
+                    pass
+        
+        time.sleep(1)  # Rate limit protection
+    
+    # Muunna indeksiksi (2015=100)
+    year_2015_avg = sum([v for k, v in result.items() if k.startswith("2015")]) / 12
+    if year_2015_avg > 0:
+        return {k: (v / year_2015_avg) * 100 for k, v in result.items()}
+    return result
 
 
 # =============================================================================
@@ -298,6 +353,7 @@ def merge_all_statistics():
         "kiinteisto_tontit_hinnat": fetch_kiinteistojen_hinnat(),
         "kiinteisto_yllapito": fetch_kiinteisto_yllapito(),
         "rakennus_tuotanto": fetch_rakennus_tuotanto(),
+        "rakennusluvat": fetch_rakennusluvat(),
     }
     
     all_periods = set()
@@ -321,17 +377,18 @@ def export_to_json(merged, raw_data, filename="asuminen_rakentaminen.json"):
     output = {
         "metadata": {
             "source": "Tilastokeskus (StatFin)",
-            "base_year": "2021=100",
+            "base_year": "2015=100",
             "description": "Asumisen ja rakentamisen yhdistetty indeksiaineisto",
             "series": {
-                "rakennuskustannusindeksi": "Rakennuskustannusindeksin kokonaisindeksi (2021=100)",
-                "vuokraindeksi": "Vuokraindeksi (muunnettu 2021=100)",
-                "osakeasunnot_hinnat": "Osakeasuntojen hintaindeksi (muunnettu 2021=100)",
-                "kiinteisto_tontit_hinnat": "Omakotitalotonttien hintaindeksi (muunnettu 2021=100)",
-                "kiinteisto_yllapito": "Kiinteiston yllapidon kustannusindeksi (2021=100)",
-                "rakennus_tuotanto": "Uudisrakentamisen volyymi-indeksi (muunnettu 2021=100)"
+                "rakennuskustannusindeksi": "Rakennuskustannusindeksin kokonaisindeksi (2015=100)",
+                "vuokraindeksi": "Vuokraindeksi (2015=100)",
+                "osakeasunnot_hinnat": "Osakeasuntojen hintaindeksi (2015=100)",
+                "kiinteisto_tontit_hinnat": "Omakotitalotonttien hintaindeksi (2015=100)",
+                "kiinteisto_yllapito": "Kiinteiston yllapidon kustannusindeksi (muunnettu 2015=100, data 2021-)",
+                "rakennus_tuotanto": "Uudisrakentamisen volyymi-indeksi (muunnettu 2015=100)",
+                "rakennusluvat": "Myönnetyt rakennusluvat, tilavuus m3 liukuva vuosisumma (indeksi 2015=100)"
             },
-            "note": "Indeksit muunnettu perusvuodesta 2015/2020 perusvuoteen 2021."
+            "note": "Indeksit muunnettu perusvuodesta 2020/2021 perusvuoteen 2015. Kiinteistön ylläpidon data alkaa Q1/2021."
         },
         "merged_data": merged
     }
@@ -366,7 +423,7 @@ def main():
     print("="*60)
     print("ASUMISEN JA RAKENTAMISEN TILASTOT")
     print("Tilastokeskus - Yhdistetty aineisto")
-    print("Perusvuosi: 2021 = 100")
+    print("Perusvuosi: 2015 = 100")
     print("="*60)
     
     merged, raw_data = merge_all_statistics()

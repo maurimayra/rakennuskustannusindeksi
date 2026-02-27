@@ -44,7 +44,8 @@ colors = {
     'osakeasunnot_hinnat': '#2ca02c',
     'kiinteisto_tontit_hinnat': '#d62728',
     'kiinteisto_yllapito': '#9467bd',
-    'rakennus_tuotanto': '#8c564b'
+    'rakennus_tuotanto': '#8c564b',
+    'rakennusluvat': '#e377c2'
 }
 
 # Piirretään jokainen sarja
@@ -55,8 +56,8 @@ for col in df.columns:
 
 # Asetukset
 ax.set_xlabel('Vuosi', fontsize=12)
-ax.set_ylabel('Indeksi (2021=100)', fontsize=12)
-ax.set_title('Asumisen ja rakentamisen indeksit 2015-2026\nPerusvuosi 2021=100', 
+ax.set_ylabel('Indeksi (2015=100)', fontsize=12)
+ax.set_title('Asumisen ja rakentamisen indeksit 2015-2026\nPerusvuosi 2015=100', 
              fontsize=14, fontweight='bold')
 ax.legend(loc='best', fontsize=10)
 ax.grid(True, alpha=0.3)
