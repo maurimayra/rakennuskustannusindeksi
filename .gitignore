@@ -14,9 +14,10 @@ build/
 !example.json
 
 # Test files
-test_*.py
+# test_*.py
 
 # IDE
 .vscode/
 .idea/
 *.swp
+!test_api.py
