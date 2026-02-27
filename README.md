@@ -18,11 +18,20 @@ Yhdistetty aineisto Tilastokeskuksen (StatFin) asumisen ja rakentamisen tilastoi
 ## Käyttö
 
 ```bash
-# Aja skripti
-python3 asuminen_rakentaminen.py
+# Hae data Tilastokeskuksesta
+python asuminen_rakentaminen.py
 
 # Tulos: asuminen_rakentaminen.json
+
+# Visualisoi data
+python visualisoi_data.py
+
+# Tulos: asuminen_rakentaminen.png
 ```
+
+## Esimerkkikuva
+
+![Asumisen ja rakentamisen indeksit](asuminen_rakentaminen.png)
 
 ## API
 
